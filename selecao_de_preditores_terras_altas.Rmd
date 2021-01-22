@@ -1,0 +1,1272 @@
+---
+title: "Avaliação de dados climáticos como preditores para determinação para a data de floração de arroz de terras altas (Oryza sativa L.)"
+author: "Gutemberg Resende Honorio Filho"
+date: "29/12/2020"
+output: html_document
+---
+
+# Organização dos dados
+
+```{r , include=F}
+knitr::opts_chunk$set(warning = F, message = F)
+```
+
+```{r}
+# Pacotes
+
+if(!require(tidyverse))
+  install.packages("tidyverse")
+
+   # Obs.: Os demais pacotes serão carregados conforme a necessidade.
+```
+
+
+```{r Diretório} 
+# DIRETÓRIO DOS DADOS 
+
+Tabelabruta<- read.csv("d:/Users/Cristiane Resende/Desktop/Gutemberg Honorio/Mestrado/Dados_originais/Merge_1980_2018.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE) # tabela com os dados originais
+
+### Tabelas acessório
+
+
+TabelabrutaIRR = subset(Tabelabruta, SIST_CULT == "IRRIGATED") # Somente Irrigado
+TabelabrutaTA = subset(Tabelabruta, SIST_CULT == "UPLAND") # Somente Terras altas
+
+```
+
+
+
+```{r}
+# Preparando os dados
+
+#Dados do arroz terras altas
+
+mediasTA <- TabelabrutaTA  %>% group_by(GENOTIPO, latitude) %>% summarise(FLO_Medio = mean(FLO_E), Tmax_Maxima=	mean(Tmax_Maxima),Tmax_fld_m=	mean(Tmax_fld_m),	Tmax_R=	mean(Tmax_R),	Tmax_ACC_R=	mean(Tmax_ACC_R), Tmax_Minima=	mean(Tmax_Minima),	Tmax_Media=mean(Tmax_Media),Tmax_V=	mean(Tmax_V),Tmax_ACC_V=	mean(Tmax_ACC_V),	Tmin_Maxima=mean(Tmin_Maxima),Tmin_Minima=	mean(Tmin_Minima),	Tmin_Media=mean(Tmin_Media),	Tmin_V=	mean(Tmin_V),	Tmin_ACC_V=mean(Tmin_ACC_V), Tmin_fld_m=	mean(Tmin_fld_m),	Tmin_R=	mean(Tmin_R),	Tmin_ACC_R=	mean(Tmin_ACC_R), Chuva_ACC=	mean(Chuva_ACC),	Chuva_ACC_V=mean(Chuva_ACC_V), Chuva_ACC_R=	mean(Chuva_ACC_R),Rad_ACC_R=	mean(Rad_ACC_R),	Rad_ACC=	mean(Rad_ACC),	Rad_ACC_V=mean(Rad_ACC_V),	UR_Media=mean(umidade_Media),UR_V=	mean(umidade_V), UR_fld_m=	mean(umidade_fld_m),	UR_R=	mean(umidade_R),	Vento_fld_m=	mean(Vento_fld_m),	Vento_R=	mean(Vento_R), Vento_Media=	mean(Vento_Media),	Vento_V=mean(Vento_V),			Graus_dia_ciclo=mean(graus_dia_ciclo), Graus_dia_FLO=mean(graus_dia_FLO+graus_dia_IP)) # médias das variaveis pelos genótipos considerando as latitudes em que foram plantados.
+
+# Separando outliers
+
+Q <- quantile(mediasTA$FLO_Medio, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(mediasTA$FLO_Medio)
+Temporario_TA<- subset(mediasTA, mediasTA$FLO_Medio > (Q[1] - 1.5*iqr) & mediasTA$FLO_Medio < (Q[2]+1.5*iqr))
+
+
+#removendo as variáveis genótipo e latitude para facilitar os calculos.
+
+Temporario_TA<-Temporario_TA[,c(-1,-2)] 
+
+
+Temporario_TA<-Temporario_TA %>% mutate(T_Media = (Tmax_Media+Tmin_Media)/2)
+```
+
+```{r}
+# Grupos
+
+ Vegetativo<- Temporario_TA[,c("FLO_Medio", "Tmax_V", "Tmax_ACC_V", "Tmin_V", "Tmin_ACC_V", "Chuva_ACC_V", "Rad_ACC_V", "UR_V", "Vento_V")]
+
+Reprodutivo <-Temporario_TA[,c("FLO_Medio","Tmax_fld_m", "Tmax_R", "Tmax_ACC_R", "Tmin_fld_m",	"Tmin_R",	"Tmin_ACC_R", "Chuva_ACC_R", "Rad_ACC_R", "UR_fld_m",	"UR_R",	"Vento_fld_m",	"Vento_R", "Graus_dia_FLO")]
+
+Ciclo<- Temporario_TA[,c("FLO_Medio","T_Media", "Tmax_Maxima","Tmax_Minima","Tmax_Media","Tmin_Maxima","Tmin_Minima",	"Tmin_Media", "Chuva_ACC", 	"Rad_ACC", "UR_Media","Vento_Media","Graus_dia_ciclo")]
+
+
+ Todas <- Temporario_TA[,c("FLO_Medio","Tmax_V", "Tmax_ACC_V", "Tmin_V", "Tmin_ACC_V", "Chuva_ACC_V", "Rad_ACC_V", "UR_V", "Vento_V", "Tmax_fld_m", "Tmax_R", "Tmax_ACC_R", "Tmin_fld_m",	"Tmin_R",	"Tmin_ACC_R", "Chuva_ACC_R", "Rad_ACC_R", "UR_fld_m",	"UR_R",	"Vento_fld_m",	"Vento_R", "Graus_dia_FLO", "T_Media", "Tmax_Maxima", "Tmax_Minima", "Tmax_Media", "Tmin_Maxima", "Tmin_Minima", "Tmin_Media", "Chuva_ACC", "Rad_ACC", "UR_Media", "Vento_Media", "Graus_dia_ciclo")]
+```
+
+# 1.0) Terras altas
+## 1.1) Grupo 1: Vegetativo
+
+### 1.1.1) Seleção de preditores
+
+```{r}
+if(!require(gam))
+  install.packages("gam") #Desabilitar o pacote mgcv antes de usar este.
+
+```
+
+####a) Stepwise
+
+```{r}
+
+GAM<-gam(FLO_Medio ~  (Tmax_V) + (Tmax_ACC_V) + (Tmin_V) + (Tmin_ACC_V) + (Chuva_ACC_V) + (Rad_ACC_V) + (UR_V) + (Vento_V) , data = Vegetativo)
+Scope<-gam.scope(Vegetativo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step1<-step.Gam(GAM ,Scope, direction = "both")
+```
+```{r}
+Step1$formula
+```
+```{r}
+Step1$aic
+```
+####b) Forward
+
+```{r}
+
+GAM<-gam(FLO_Medio ~ (Tmax_ACC_V) , data = Vegetativo)
+Scope<-gam.scope(Vegetativo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step2<-step.Gam(GAM ,Scope, direction = "forward")
+
+```
+```{r}
+Step2$formula
+```
+```{r}
+Step2$aic
+```
+
+####c) Backward
+
+```{r}
+GAM<-gam(FLO_Medio ~ s(Tmax_V)+ s(Tmax_ACC_V)+ s(Tmin_V)+ s(Tmin_ACC_V)+ s(Chuva_ACC_V)+ s(Rad_ACC_V)+ s(UR_V)+ s (Vento_V), data = Vegetativo)
+Scope<-gam.scope(Vegetativo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step3<-step.Gam(GAM ,Scope, direction = "backward")
+```
+
+```{r}
+Step3$formula
+```
+```{r}
+Step3$aic
+```
+
+#### d) Abordagem de dupla penalidade_ Espaços nulos (NSP)
+```{r}
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+```{r}
+modelo_gam4_sa<- gam(FLO_Medio ~ s(Tmax_V,bs="cr")+ s(Tmax_ACC_V,bs="cr")+ s(Tmin_V,bs="cr")+ s(Tmin_ACC_V,bs="cr")+ s(Chuva_ACC_V,bs="cr")+s(Rad_ACC_V,bs="cr")+ s(UR_V,bs="cr")+s (Vento_V,bs="cr"), method="REML",select = T, data = Vegetativo)
+summary(modelo_gam4_sa)
+```
+
+```{r}
+modelo_gam4 <- gam(FLO_Medio ~ s(Tmax_V) + s(Tmax_ACC_V) + 
+    s(Tmin_V) + s(Tmin_ACC_V) + 
+    s(Chuva_ACC_V) + s(Rad_ACC_V) + 
+    s(UR_V) + s(Vento_V), data = Vegetativo)
+```
+
+```{r}
+summary(modelo_gam4)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam4)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam4)
+
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam4)
+GCV<-summary(modelo_gam4)$sp.criterion
+r.sq<-summary(modelo_gam4)$r.sq
+MAD <- mean(abs((predict(modelo_gam4, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam4$deviance - modelo_gam4$null.deviance))*-100)/modelo_gam4$null.deviance)
+tabela_4<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "NSP")
+tabela_4
+
+```
+
+
+#### e) Suavisação com contração (SS)
+
+```{r}
+modelo_gam5_sa<- gam(FLO_Medio ~ s(Tmax_V,bs="cr")+ s(Tmax_ACC_V,bs="cr")+ s(Tmin_V,bs="cr")+ s(Tmin_ACC_V,bs="cr")+ s(Chuva_ACC_V,bs="cr")+s(Rad_ACC_V,bs="cr")+ s(UR_V,bs="cr")+s (Vento_V,bs="cr"), method="REML",data = Vegetativo)
+summary(modelo_gam5_sa)
+```
+
+##### Ajustes
+###### 1º Ajuste 
+```{r}
+
+modelo_gam5_a<- gam(FLO_Medio ~ s(Tmax_V,bs="cr")+ s(Tmax_ACC_V,bs="cr")+ s(Tmin_V,bs="cr")+ s(Chuva_ACC_V,bs="cr")+s(Rad_ACC_V,bs="cr")+ s(UR_V,bs="cr")+s (Vento_V,bs="cr"), method="REML",data = Vegetativo)
+```
+```{r}
+summary(modelo_gam5_a)
+```
+```{r}
+modelo_gam5<- gam(FLO_Medio ~s(Tmax_V ) + s(Tmax_ACC_V ) + 
+    s(Tmin_V ) + 
+    s(Chuva_ACC_V ) + s(Rad_ACC_V ) + 
+    s(UR_V ) + s(Vento_V), data = Vegetativo)
+modelo_gam5
+```
+
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam5)
+GCV<-summary(modelo_gam5)$sp.criterion
+r.sq<-summary(modelo_gam5)$r.sq
+MAD <- mean(abs((predict(modelo_gam5, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam5$deviance - modelo_gam5$null.deviance))*-100)/modelo_gam5$null.deviance)
+tabela_5<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "SS")
+tabela_5
+
+```
+
+
+###1.1.2) Aplicação no GAM
+
+```{r}
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+
+
+#### a) Aplicação GAM stepwise 
+  
+
+```{r}
+# Modelo GAM 1
+
+modelo_gam1 <- gam(FLO_Medio ~ s(Tmax_V) + s(Tmax_ACC_V) + s(Tmin_V) + s(Tmin_ACC_V) + 
+    s(Chuva_ACC_V) + s(Rad_ACC_V) + s(UR_V) + s(Vento_V), data=Vegetativo)
+modelo_gam1
+```
+```{r}
+summary(modelo_gam1)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam1)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam1)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam1)
+GCV<-summary(modelo_gam1)$sp.criterion
+r.sq<-summary(modelo_gam1)$r.sq
+MAD <- mean(abs((predict(modelo_gam1, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam1$deviance - modelo_gam1$null.deviance))*-100)/modelo_gam1$null.deviance)
+tabela_1<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Stepwise")
+tabela_1
+
+```
+
+
+
+#### b) Aplicação GAM Forward 
+  
+
+```{r}
+# Modelo GAM 2
+
+modelo_gam2 <- gam(FLO_Medio ~ s(Tmax_V) + s(Tmax_ACC_V) + s(Tmin_V) + s(Chuva_ACC_V) + 
+    s(Rad_ACC_V) + s(UR_V) + s(Vento_V), data=Vegetativo)
+modelo_gam2
+```
+```{r}
+summary(modelo_gam2)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam2)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam2)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam2)
+GCV<-summary(modelo_gam2)$sp.criterion
+r.sq<-summary(modelo_gam2)$r.sq
+MAD <- mean(abs((predict(modelo_gam2, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam2$deviance - modelo_gam2$null.deviance))*-100)/modelo_gam2$null.deviance)
+tabela_2<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Forward")
+tabela_2
+
+```
+
+
+
+
+#### c) Aplicação GAM Backward 
+  
+
+```{r}
+# Modelo GAM 3
+
+modelo_gam3 <- gam(FLO_Medio ~ s(Tmax_V) + s(Tmax_ACC_V) + s(Tmin_V) + s(Tmin_ACC_V) + 
+    s(Chuva_ACC_V) + s(Rad_ACC_V) + s(UR_V) + s(Vento_V), data=Vegetativo)
+modelo_gam3
+```
+```{r}
+summary(modelo_gam3)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam3)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam3)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam3)
+GCV<-summary(modelo_gam3)$sp.criterion
+r.sq<-summary(modelo_gam3)$r.sq
+MAD <- mean(abs((predict(modelo_gam3, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam3$deviance - modelo_gam3$null.deviance))*-100)/modelo_gam3$null.deviance)
+tabela_3<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Backward")
+tabela_3
+
+```
+
+
+###1.1.3) Comparação dos métodos
+
+```{r}
+tabela_Vegetativo<- rbind(tabela_1,tabela_2,tabela_3,tabela_4,tabela_5)
+View(tabela_Vegetativo)
+
+```
+
+
+
+## 1.2) Grupo 2: Reprodutivo
+
+### 1.2.1) Seleção de preditores
+
+```{r}
+if(!require(gam))
+  install.packages("gam") #Desabilitar o pacote mgcv antes de usar este.
+
+```
+
+####a) Stepwise
+
+```{r}
+
+GAM<-gam(FLO_Medio ~  (Tmax_fld_m)+ (Tmax_R)+ (Tmax_ACC_R)+ (Tmin_fld_m)+	(Tmin_R)+	(Tmin_ACC_R)+ (Chuva_ACC_R)+ (Rad_ACC_R)+ (UR_fld_m)+	(UR_R)+	(Vento_fld_m)+	(Vento_R)+ (Graus_dia_FLO), data = Reprodutivo)
+Scope<-gam.scope(Reprodutivo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step1<-step.Gam(GAM ,Scope, direction = "both")
+```
+```{r}
+Step1$formula
+```
+```{r}
+Step1$aic
+```
+####b) Forward
+
+```{r}
+
+GAM<-gam(FLO_Medio ~ Tmax_fld_m, data = Reprodutivo)
+Scope<-gam.scope(Reprodutivo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step2<-step.Gam(GAM ,Scope, direction = "forward")
+
+```
+```{r}
+Step2$formula
+```
+```{r}
+Step2$aic
+```
+
+####c) Backward
+
+```{r}
+GAM<-gam(FLO_Medio ~ s(Tmax_fld_m) + s (Tmax_R) + s (Tmax_ACC_R) + s (Tmin_fld_m) + s	(Tmin_R) + s	(Tmin_ACC_R) + s (Chuva_ACC_R) + s (Rad_ACC_R) + s (UR_fld_m) + s	(UR_R) + s	(Vento_fld_m) + s	(Vento_R) + s (Graus_dia_FLO), data = Reprodutivo)
+Scope<-gam.scope(Reprodutivo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step3<-step.Gam(GAM ,Scope, direction = "backward")
+```
+
+```{r}
+Step3$formula
+```
+```{r}
+Step3$aic
+```
+
+#### d) Abordagem de dupla penalidade_ Espaços nulos (NSP)
+```{r}
+
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+```{r}
+modelo_gam4_sa<- gam(FLO_Medio ~ s(Tmax_fld_m,bs="cr") + s (Tmax_R,bs="cr") + s (Tmax_ACC_R,bs="cr") + s (Tmin_fld_m,bs="cr") + s	(Tmin_R,bs="cr") + s	(Tmin_ACC_R,bs="cr") + s (Chuva_ACC_R,bs="cr") + s (Rad_ACC_R,bs="cr") + s (UR_fld_m,bs="cr") + s	(UR_R,bs="cr") + s	(Vento_fld_m,bs="cr") + s	(Vento_R,bs="cr") + s (Graus_dia_FLO,bs="cr"), method="REML",select = T, data = Reprodutivo)
+summary(modelo_gam4_sa)
+```
+##### Ajustes
+```{r}
+modelo_gam4_sa<- gam(FLO_Medio ~ s(Tmax_fld_m,bs="cr") + s (Tmax_R,bs="cr") + s (Tmax_ACC_R,bs="cr")  + s	(Tmin_R,bs="cr") + s	(Tmin_ACC_R,bs="cr") + s (Chuva_ACC_R,bs="cr") + s (Rad_ACC_R,bs="cr") + s (UR_fld_m,bs="cr") + s	(UR_R,bs="cr") + s	(Vento_fld_m,bs="cr") + s	(Vento_R,bs="cr") + s (Graus_dia_FLO,bs="cr"), method="REML",select = T, data = Reprodutivo)
+summary(modelo_gam4_sa)
+
+```
+```{r}
+modelo_gam4 <- gam(FLO_Medio ~ s(Tmax_fld_m) + s(Tmax_R) + 
+    s(Tmax_ACC_R) + s(Tmin_R) + 
+    s(Tmin_ACC_R) + s(Chuva_ACC_R) + 
+    s(Rad_ACC_R) + s(UR_fld_m) + 
+    s(UR_R) + s(Vento_fld_m) + 
+    s(Vento_R) + s(Graus_dia_FLO) , data = Reprodutivo)
+```
+
+```{r}
+summary(modelo_gam4)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam4)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam4)
+
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam4)
+GCV<-summary(modelo_gam4)$sp.criterion
+r.sq<-summary(modelo_gam4)$r.sq
+MAD <- mean(abs((predict(modelo_gam4, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam4$deviance - modelo_gam4$null.deviance))*-100)/modelo_gam4$null.deviance)
+tabela_4<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "NSP")
+tabela_4
+
+```
+
+
+#### e) Suavisação com contração (SS)
+
+```{r}
+
+modelo_gam5_sa<- gam(FLO_Medio ~ s(Tmax_fld_m,bs="cr") + s (Tmax_R,bs="cr") + s (Tmax_ACC_R,bs="cr") + s (Tmin_fld_m,bs="cr") + s	(Tmin_R,bs="cr") + s	(Tmin_ACC_R,bs="cr") + s (Chuva_ACC_R,bs="cr") + s (Rad_ACC_R,bs="cr") + s (UR_fld_m,bs="cr") + s	(UR_R,bs="cr") + s	(Vento_fld_m,bs="cr") + s	(Vento_R,bs="cr") + s (Graus_dia_FLO,bs="cr"), method="REML",data = Reprodutivo)
+summary(modelo_gam5_sa)
+```
+
+```{r}
+modelo_gam5_a<- gam(FLO_Medio ~ s(Tmax_fld_m,bs="cr") + s (Tmax_R,bs="cr") + s (Tmax_ACC_R,bs="cr")  + s	(Tmin_R,bs="cr") + s	(Tmin_ACC_R,bs="cr") + s (Chuva_ACC_R,bs="cr") + s (Rad_ACC_R,bs="cr") + s	(UR_R,bs="cr") + s	(Vento_fld_m,bs="cr") + s	(Vento_R,bs="cr") + s (Graus_dia_FLO,bs="cr"), method="REML",data = Reprodutivo)
+summary(modelo_gam5_a)
+```
+
+##### Ajustes
+
+```{r}
+modelo_gam5<- gam(FLO_Medio ~s(Tmax_fld_m) + s(Tmax_R) + 
+    s(Tmax_ACC_R) + s(Tmin_R) + 
+    s(Tmin_ACC_R) + s(Chuva_ACC_R) + 
+    s(Rad_ACC_R) + s(UR_R) + 
+    s(Vento_fld_m) + s(Vento_R) + 
+    s(Graus_dia_FLO), data = Reprodutivo)
+
+summary(modelo_gam5)
+```
+
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam5)
+GCV<-summary(modelo_gam5)$sp.criterion
+r.sq<-summary(modelo_gam5)$r.sq
+MAD <- mean(abs((predict(modelo_gam5, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam5$deviance - modelo_gam5$null.deviance))*-100)/modelo_gam5$null.deviance)
+tabela_5<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "SS")
+tabela_5
+
+```
+
+
+###1.2.2) Aplicação no GAM
+
+```{r}
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+
+
+#### a) Aplicação GAM stepwise 
+  
+
+```{r}
+# Modelo GAM 1
+
+modelo_gam1 <-gam(FLO_Medio ~ s(Tmax_fld_m) + s(Tmax_R) + s(Tmax_ACC_R) + s(Tmin_R) + 
+    Tmin_ACC_R + s(Chuva_ACC_R) + s(Rad_ACC_R) + s(UR_R) + Vento_fld_m + 
+    s(Vento_R) + s(Graus_dia_FLO), data=Reprodutivo)
+
+```
+```{r}
+summary(modelo_gam1)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam1)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam1)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam1)
+GCV<-summary(modelo_gam1)$sp.criterion
+r.sq<-summary(modelo_gam1)$r.sq
+MAD <- mean(abs((predict(modelo_gam1, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam1$deviance - modelo_gam1$null.deviance))*-100)/modelo_gam1$null.deviance)
+tabela_1<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Stepwise")
+tabela_1
+
+```
+
+
+
+#### b) Aplicação GAM Forward 
+  
+
+```{r}
+# Modelo GAM 2
+
+modelo_gam2 <- gam(FLO_Medio ~ s(Tmax_fld_m) + s(Tmax_R) + s(Tmin_R) + s(UR_fld_m) + 
+    s(UR_R) + s(Graus_dia_FLO), data=Reprodutivo)
+modelo_gam2
+```
+```{r}
+summary(modelo_gam2)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam2)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam2)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam2)
+GCV<-summary(modelo_gam2)$sp.criterion
+r.sq<-summary(modelo_gam2)$r.sq
+MAD <- mean(abs((predict(modelo_gam2, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam2$deviance - modelo_gam2$null.deviance))*-100)/modelo_gam2$null.deviance)
+tabela_2<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Forward")
+tabela_2
+
+```
+
+
+
+
+#### c) Aplicação GAM Backward 
+  
+
+```{r}
+# Modelo GAM 3
+
+modelo_gam3 <- gam(FLO_Medio ~ s(Tmax_R) + s(Tmax_ACC_R) + s(Tmin_fld_m) + s(Tmin_R) + 
+    s(Tmin_ACC_R) + s(Chuva_ACC_R) + s(Rad_ACC_R) + UR_fld_m + 
+    s(UR_R) + Vento_fld_m + s(Vento_R) + s(Graus_dia_FLO), data=Reprodutivo)
+modelo_gam3
+```
+```{r}
+summary(modelo_gam3)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam3)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam3)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam3)
+GCV<-summary(modelo_gam3)$sp.criterion
+r.sq<-summary(modelo_gam3)$r.sq
+MAD <- mean(abs((predict(modelo_gam3, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam3$deviance - modelo_gam3$null.deviance))*-100)/modelo_gam3$null.deviance)
+tabela_3<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Backward")
+tabela_3
+
+```
+
+
+###1.1.3) Comparação dos métodos
+
+```{r}
+tabela_Reprodutivo<- rbind(tabela_1,tabela_2,tabela_3,tabela_4,tabela_5)
+View(tabela_Reprodutivo)
+
+```
+
+
+
+## 1.3) Grupo 3: Ciclo
+
+### 1.3.1) Seleção de preditores
+
+```{r}
+if(!require(gam))
+  install.packages("gam") #Desabilitar o pacote mgcv antes de usar este.
+
+```
+
+####a) Stepwise
+
+```{r}
+
+GAM<-gam(FLO_Medio ~(T_Media)+ (Tmax_Maxima)+(Tmax_Minima)+(Tmax_Media)+(Tmin_Maxima)+(Tmin_Minima)+	(Tmin_Media)+ (Chuva_ACC)+ 	(Rad_ACC)+ (UR_Media)+(Vento_Media)+(Graus_dia_ciclo), data = Ciclo)
+Scope<-gam.scope(Ciclo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step1<-step.Gam(GAM ,Scope, direction = "both")
+```
+```{r}
+Step1$formula
+```
+```{r}
+Step1$aic
+```
+####b) Forward
+
+```{r}
+
+GAM<-gam(FLO_Medio ~ (Tmax_Maxima) , data = Ciclo)
+Scope<-gam.scope(Ciclo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step2<-step.Gam(GAM ,Scope, direction = "forward")
+
+```
+```{r}
+Step2$formula
+```
+```{r}
+Step2$aic
+```
+
+####c) Backward
+
+```{r}
+GAM<-gam(FLO_Medio ~ s(Tmax_Maxima)+s(Tmax_Minima)+s(Tmax_Media)+s(Tmin_Maxima)+s(Tmin_Minima)+	s(Tmin_Media)+ s(Chuva_ACC)+ 	s(Rad_ACC)+ s(UR_Media)+s(Vento_Media)+s(Graus_dia_ciclo), data = Ciclo)
+Scope<-gam.scope(Ciclo, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step3<-step.Gam(GAM ,Scope, direction = "backward")
+```
+
+```{r}
+Step3$formula
+```
+```{r}
+Step3$aic
+```
+
+#### d) Abordagem de dupla penalidade_ Espaços nulos (NSP)
+```{r}
+
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+```{r}
+modelo_gam4_sa<- gam(FLO_Medio ~s(Tmax_Maxima,bs="cr")+s(Tmax_Minima,bs="cr")+s(Tmax_Media,bs="cr")+s(Tmin_Maxima,bs="cr")+s(Tmin_Minima,bs="cr")+	s(Tmin_Media,bs="cr")+ s(Chuva_ACC,bs="cr")+ 	s(Rad_ACC,bs="cr")+ s(UR_Media,bs="cr")+s(Vento_Media,bs="cr")+s(Graus_dia_ciclo,bs="cr") , method="REML",select = T, data = Ciclo)
+summary(modelo_gam4_sa)
+```
+
+```{r}
+modelo_gam4<- gam(FLO_Medio ~s(Tmax_Maxima) + s(Tmax_Minima) + s(Tmax_Media) + s(Tmin_Maxima) + s(Tmin_Minima) + s(Tmin_Media) + s(Chuva_ACC) + s(Rad_ACC) + s(UR_Media) + s(Vento_Media) + s(Graus_dia_ciclo), data = Ciclo)
+summary(modelo_gam4)
+
+```
+##### Ajuste
+```{r}
+modelo_gam4<- gam(FLO_Medio ~s(Tmax_Maxima) + s(Tmax_Minima) + s(Tmax_Media) + s(Tmin_Maxima) + s(Tmin_Minima) + s(Tmin_Media) + s(Chuva_ACC) + s(Rad_ACC)  + s(Vento_Media) + s(Graus_dia_ciclo), data = Ciclo)
+summary(modelo_gam4)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam4)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam4)
+
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam4)
+GCV<-summary(modelo_gam4)$sp.criterion
+r.sq<-summary(modelo_gam4)$r.sq
+MAD <- mean(abs((predict(modelo_gam4, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam4$deviance - modelo_gam4$null.deviance))*-100)/modelo_gam4$null.deviance)
+tabela_4<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "NSP")
+tabela_4
+
+```
+
+
+#### e) Suavisação com contração (SS)
+
+```{r}
+
+modelo_gam5_sa<- gam(FLO_Medio ~ s(Tmax_Maxima,bs="cr")+s(Tmax_Minima,bs="cr")+s(Tmax_Media,bs="cr")+s(Tmin_Maxima,bs="cr")+s(Tmin_Minima,bs="cr")+	s(Tmin_Media,bs="cr")+ s(Chuva_ACC,bs="cr")+ 	s(Rad_ACC,bs="cr")+ s(UR_Media,bs="cr")+s(Vento_Media,bs="cr")+s(Graus_dia_ciclo,bs="cr") , method="REML",data = Ciclo)
+summary(modelo_gam5_sa)
+```
+##### Ajuste
+```{r}
+modelo_gam5_a<- gam(FLO_Medio ~   s(Tmax_Minima, 
+    bs = "cr") + s(Tmax_Media, bs = "cr") + s(Tmin_Minima, bs = "cr") + s(Tmin_Media, 
+    bs = "cr") + s(Chuva_ACC, bs = "cr") + s(Rad_ACC, 
+    bs = "cr") + s(UR_Media, bs = "cr") + s(Vento_Media, 
+    bs = "cr") + s(Graus_dia_ciclo, bs = "cr") , method="REML",data = Ciclo)
+summary(modelo_gam5_a)
+```
+
+```{r}
+modelo_gam5<- gam(FLO_Medio ~ s(Tmax_Minima) + s(Tmax_Media) + 
+    s(Tmin_Minima) + s(Tmin_Media) + 
+    s(Chuva_ACC) + s(Rad_ACC) + 
+    s(UR_Media) + s(Vento_Media) + 
+    s(Graus_dia_ciclo), data = Ciclo)
+
+summary(modelo_gam5)
+```
+
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam5)
+GCV<-summary(modelo_gam5)$sp.criterion
+r.sq<-summary(modelo_gam5)$r.sq
+MAD <- mean(abs((predict(modelo_gam5, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam5$deviance - modelo_gam5$null.deviance))*-100)/modelo_gam5$null.deviance)
+tabela_5<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "SS")
+tabela_5
+
+```
+
+
+###1.3.2) Aplicação no GAM
+
+```{r}
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+
+
+#### a) Aplicação GAM stepwise 
+  
+
+```{r}
+# Modelo GAM 1
+
+modelo_gam1 <-gam(FLO_Medio ~ s(T_Media) + s(Tmax_Maxima) + s(Tmax_Minima) + s(Tmax_Media) + 
+    s(Tmin_Minima) + Chuva_ACC + s(Rad_ACC) + s(UR_Media) + s(Vento_Media) + 
+    s(Graus_dia_ciclo) , data=Ciclo)
+
+```
+```{r}
+summary(modelo_gam1)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam1)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam1)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam1)
+GCV<-summary(modelo_gam1)$sp.criterion
+r.sq<-summary(modelo_gam1)$r.sq
+MAD <- mean(abs((predict(modelo_gam1, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam1$deviance - modelo_gam1$null.deviance))*-100)/modelo_gam1$null.deviance)
+tabela_1<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Stepwise")
+tabela_1
+
+```
+
+
+
+#### b) Aplicação GAM Forward 
+  
+
+```{r}
+# Modelo GAM 2
+
+modelo_gam2 <- gam(FLO_Medio ~ s(T_Media) + s(Tmax_Maxima) + s(Tmax_Minima) + s(Tmin_Media) + 
+    s(Chuva_ACC) + s(Rad_ACC) + s(Vento_Media) + s(Graus_dia_ciclo) , data=Ciclo)
+modelo_gam2
+```
+```{r}
+summary(modelo_gam2)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam2)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam2)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam2)
+GCV<-summary(modelo_gam2)$sp.criterion
+r.sq<-summary(modelo_gam2)$r.sq
+MAD <- mean(abs((predict(modelo_gam2, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam2$deviance - modelo_gam2$null.deviance))*-100)/modelo_gam2$null.deviance)
+tabela_2<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Forward")
+tabela_2
+
+```
+
+
+
+
+#### c) Aplicação GAM Backward 
+  
+
+```{r}
+# Modelo GAM 3
+
+modelo_gam3 <- gam(FLO_Medio ~ s(Tmax_Maxima) + s(Tmax_Minima) + s(Tmax_Media) + 
+    s(Tmin_Minima) + s(Tmin_Media) + Chuva_ACC + s(Rad_ACC) + 
+    s(UR_Media) + s(Vento_Media) + s(Graus_dia_ciclo), data=Ciclo)
+modelo_gam3
+```
+```{r}
+summary(modelo_gam3)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam3)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam3)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam3)
+GCV<-summary(modelo_gam3)$sp.criterion
+r.sq<-summary(modelo_gam3)$r.sq
+MAD <- mean(abs((predict(modelo_gam3, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam3$deviance - modelo_gam3$null.deviance))*-100)/modelo_gam3$null.deviance)
+tabela_3<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Backward")
+tabela_3
+
+```
+
+
+###1.3.3) Comparação dos métodos
+
+```{r}
+tabela_Ciclo<- rbind(tabela_1,tabela_2,tabela_3,tabela_4,tabela_5)
+View(tabela_Ciclo)
+
+```
+
+
+
+## 1.4) Grupo 4: Todas
+
+### 1.4.1) Seleção de preditores
+
+```{r}
+if(!require(gam))
+  install.packages("gam") #Desabilitar o pacote mgcv antes de usar este.
+
+```
+
+####a) Stepwise
+
+```{r}
+
+GAM<-gam(FLO_Medio ~ (Tmax_V)+ (Tmax_ACC_V)+ (Tmin_V)+ (Tmin_ACC_V)+ (Chuva_ACC_V)+ (Rad_ACC_V)+ (UR_V)+ (Vento_V)+ (Tmax_fld_m)+ (Tmax_R)+ (Tmax_ACC_R)+ (Tmin_fld_m)+	(Tmin_R)+	(Tmin_ACC_R)+ (Chuva_ACC_R)+ (Rad_ACC_R)+ (UR_fld_m)+	(UR_R)+	(Vento_fld_m)+	(Vento_R)+ (Graus_dia_FLO)+ (T_Media)+ (Tmax_Maxima)+ (Tmax_Minima)+ (Tmax_Media)+ (Tmin_Maxima)+ (Tmin_Minima)+ (Tmin_Media)+ (Chuva_ACC)+ (Rad_ACC)+ (UR_Media)+ (Vento_Media)+ (Graus_dia_ciclo), data = Todas)
+Scope<-gam.scope(Todas, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step1<-step.Gam(GAM ,Scope, direction = "both")
+```
+```{r}
+Step1$formula
+```
+```{r}
+Step1$aic
+```
+####b) Forward
+
+```{r}
+GAM<-gam(FLO_Medio ~ Tmax_ACC_V , data = Todas)
+Scope<-gam.scope(Todas, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step2<-step.Gam(GAM ,Scope, direction = "forward")
+
+```
+```{r}
+Step2$formula
+```
+```{r}
+Step2$aic
+```
+
+####c) Backward
+
+```{r}
+GAM<-gam(FLO_Medio ~  s(Tmax_V)+s (Tmax_ACC_V)+s (Tmin_V)+s (Tmin_ACC_V)+s (Chuva_ACC_V)+s (Rad_ACC_V)+s (UR_V)+s (Vento_V)+s (Tmax_fld_m)+s (Tmax_R)+s (Tmax_ACC_R)+s (Tmin_fld_m)+s	(Tmin_R)+s	(Tmin_ACC_R)+s (Chuva_ACC_R)+s (Rad_ACC_R)+s (UR_fld_m)+s	(UR_R)+s	(Vento_fld_m)+s	(Vento_R)+s (Graus_dia_FLO)+s (T_Media)+s (Tmax_Maxima)+s (Tmax_Minima)+s (Tmax_Media)+s (Tmin_Maxima)+s (Tmin_Minima)+s (Tmin_Media)+s (Chuva_ACC)+s (Rad_ACC)+s (UR_Media)+s (Vento_Media)+s (Graus_dia_ciclo), data = Todas)
+Scope<-gam.scope(Todas, response=1, smoother = "s", arg = NULL, form = TRUE)
+Step3<-step.Gam(GAM ,Scope, direction = "backward")
+```
+
+```{r}
+Step3$formula
+```
+```{r}
+Step3$aic
+```
+
+#### d) Abordagem de dupla penalidade_ Espaços nulos (NSP)
+```{r}
+
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+```{r}
+modelo_gam4_sa<- gam(FLO_Medio ~  s(Tmax_V,bs="cr")+s (Tmax_ACC_V,bs="cr")+s (Tmin_V,bs="cr")+s (Tmin_ACC_V,bs="cr")+s (Chuva_ACC_V,bs="cr")+s (Rad_ACC_V,bs="cr")+s (UR_V,bs="cr")+s (Vento_V,bs="cr")+s (Tmax_fld_m,bs="cr")+s (Tmax_R,bs="cr")+s (Tmax_ACC_R,bs="cr")+s (Tmin_fld_m,bs="cr")+s	(Tmin_R,bs="cr")+s	(Tmin_ACC_R,bs="cr")+s (Chuva_ACC_R,bs="cr")+s (Rad_ACC_R,bs="cr")+s (UR_fld_m,bs="cr")+s	(UR_R,bs="cr")+s	(Vento_fld_m,bs="cr")+s	(Vento_R,bs="cr")+s (Graus_dia_FLO,bs="cr")+s (T_Media,bs="cr")+s (Tmax_Maxima,bs="cr")+s (Tmax_Minima,bs="cr")+s (Tmax_Media,bs="cr")+s (Tmin_Maxima,bs="cr")+s (Tmin_Minima,bs="cr")+s (Tmin_Media,bs="cr")+s (Chuva_ACC,bs="cr")+s (Rad_ACC,bs="cr")+s (UR_Media,bs="cr")+s (Vento_Media,bs="cr")+s (Graus_dia_ciclo,bs="cr"), method="REML",select = T, data = Todas)
+summary(modelo_gam4_sa)
+```
+##### Ajuste
+###### 1º Ajuste
+```{r}
+modelo_gam4_a<- gam(FLO_Medio ~s(Tmax_V, bs = "cr") +s(Tmax_ACC_V, bs = "cr") +s(Tmax_R, bs = "cr") +s(Tmax_ACC_R, bs = "cr") +s(Tmin_ACC_R, bs = "cr") +s(Rad_ACC_R, bs = "cr")+s(Vento_fld_m, bs = "cr") +s(Graus_dia_FLO, bs = "cr") +s(Tmax_Media, bs = "cr") +s(Rad_ACC,bs = "cr"), method="REML",select = T, data = Todas)
+summary(modelo_gam4_a)
+
+```
+###### 2º Ajuste
+```{r}
+modelo_gam4_a<- gam(FLO_Medio ~s(Tmax_V, bs = "cr") +s(Tmax_ACC_V, bs = "cr") +s(Tmax_R, bs = "cr") +s(Tmax_ACC_R, bs = "cr") +s(Tmin_ACC_R, bs = "cr") +s(Rad_ACC_R, bs = "cr")+s(Vento_fld_m, bs = "cr") +s(Graus_dia_FLO, bs = "cr") +s(Rad_ACC,bs = "cr"), method="REML",select = T, data = Todas)
+summary(modelo_gam4_a)
+```
+###### 3º Ajuste
+```{r}
+modelo_gam4_a<- gam(FLO_Medio ~s(Tmax_V, bs = "cr") +s(Tmax_ACC_V, bs = "cr") +s(Tmax_R, bs = "cr") +s(Tmax_ACC_R, bs = "cr") +s(Tmin_ACC_R, bs = "cr")+s(Graus_dia_FLO, bs = "cr") +s(Rad_ACC,bs = "cr"), method="REML",select = T, data = Todas)
+summary(modelo_gam4_a)
+```
+###### 4º Ajuste
+```{r}
+modelo_gam4_a<- gam(FLO_Medio ~ s(Tmax_V, bs = "cr") + s(Tmax_ACC_V, bs = "cr") + 
+    s(Tmax_R, bs = "cr") + s(Tmax_ACC_R, bs = "cr") + 
+    s(Tmin_ACC_R, bs = "cr") + s(Graus_dia_FLO, bs = "cr"), method="REML",select = T, data = Todas)
+summary(modelo_gam4_a)
+```
+```{r}
+modelo_gam4<- gam(FLO_Medio ~s(Tmax_V) + s(Tmax_ACC_V) + 
+    s(Tmax_R) + s(Tmax_ACC_R) + 
+    s(Tmin_ACC_R) + s(Graus_dia_FLO), data = Todas)
+summary(modelo_gam4)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam4)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam4)
+
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam4)
+GCV<-summary(modelo_gam4)$sp.criterion
+r.sq<-summary(modelo_gam4)$r.sq
+MAD <- mean(abs((predict(modelo_gam4, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam4, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam4$deviance - modelo_gam4$null.deviance))*-100)/modelo_gam4$null.deviance)
+tabela_4<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "NSP")
+tabela_4
+
+```
+
+
+#### e) Suavisação com contração (SS)
+
+```{r}
+
+modelo_gam5_sa<- gam(FLO_Medio ~ s(Tmax_V,bs="cr")+s (Tmax_ACC_V,bs="cr")+s (Tmin_V,bs="cr")+s (Tmin_ACC_V,bs="cr")+s (Chuva_ACC_V,bs="cr")+s (Rad_ACC_V,bs="cr")+s (UR_V,bs="cr")+s (Vento_V,bs="cr")+s (Tmax_fld_m,bs="cr")+s (Tmax_R,bs="cr")+s (Tmax_ACC_R,bs="cr")+s (Tmin_fld_m,bs="cr")+s	(Tmin_R,bs="cr")+s	(Tmin_ACC_R,bs="cr")+s (Chuva_ACC_R,bs="cr")+s (Rad_ACC_R,bs="cr")+s (UR_fld_m,bs="cr")+s	(UR_R,bs="cr")+s	(Vento_fld_m,bs="cr")+s	(Vento_R,bs="cr")+s (Graus_dia_FLO,bs="cr")+s (T_Media,bs="cr")+s (Tmax_Maxima,bs="cr")+s (Tmax_Minima,bs="cr")+s (Tmax_Media,bs="cr")+s (Tmin_Maxima,bs="cr")+s (Tmin_Minima,bs="cr")+s (Tmin_Media,bs="cr")+s (Chuva_ACC,bs="cr")+s (Rad_ACC,bs="cr")+s (UR_Media,bs="cr")+s (Vento_Media,bs="cr")+s (Graus_dia_ciclo,bs="cr"), method="REML",data = Todas)
+summary(modelo_gam5_sa)
+```
+##### Ajuste
+```{r}
+modelo_gam5_a<- gam(FLO_Medio ~ s(Tmax_ACC_V, bs = "cr") +s(Tmin_V, bs = "cr")+ s(Tmin_ACC_V, bs = "cr") +s(Tmax_R, bs = "cr")+ s(Tmax_ACC_R, bs = "cr")+ s(Tmin_R, bs = "cr")+ s(Tmin_ACC_R, bs = "cr")  , method="REML",data = Todas)
+summary(modelo_gam5_a)
+```
+
+```{r}
+modelo_gam5<- gam(FLO_Medio ~ s(Tmax_ACC_V) + s(Tmin_V) + 
+    s(Tmin_ACC_V) + s(Tmax_R) + 
+    s(Tmax_ACC_R) + s(Tmin_R) + 
+    s(Tmin_ACC_R), data = Todas)
+
+summary(modelo_gam5)
+```
+##### Sobre-ajuste
+```{r}
+modelo_gam5<- gam(FLO_Medio ~  s(Tmin_V) + 
+    s(Tmin_ACC_V) + 
+    s(Tmax_ACC_R) + s(Tmin_R) + 
+    s(Tmin_ACC_R), data = Todas)
+
+summary(modelo_gam5)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam5)
+GCV<-summary(modelo_gam5)$sp.criterion
+r.sq<-summary(modelo_gam5)$r.sq
+MAD <- mean(abs((predict(modelo_gam5, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam5, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam5$deviance - modelo_gam5$null.deviance))*-100)/modelo_gam5$null.deviance)
+tabela_5<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "SS")
+tabela_5
+
+```
+
+
+###1.4.2) Aplicação no GAM
+
+```{r}
+if(!require(mgcv)) 
+  install.packages("mgcv") # Desabilitar o pacote GAM antes de executar este.
+```
+
+
+#### a) Aplicação GAM stepwise 
+  
+
+```{r}
+# Modelo GAM 1
+
+modelo_gam1 <-gam(FLO_Medio ~ Tmax_ACC_V + s(Tmin_V) + Tmin_ACC_V + UR_V + Tmax_R + 
+    s(Tmax_ACC_R) + Tmin_R + Tmin_ACC_R + UR_fld_m + s(UR_R) + 
+    Vento_R + s(Graus_dia_FLO) + T_Media + Tmax_Media + Tmin_Media + 
+    Rad_ACC , data=Todas)
+
+```
+```{r}
+summary(modelo_gam1)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam1)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam1)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam1)
+GCV<-summary(modelo_gam1)$sp.criterion
+r.sq<-summary(modelo_gam1)$r.sq
+MAD <- mean(abs((predict(modelo_gam1, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam1, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam1$deviance - modelo_gam1$null.deviance))*-100)/modelo_gam1$null.deviance)
+tabela_1<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Stepwise")
+tabela_1
+
+```
+
+
+
+#### b) Aplicação GAM Forward 
+  
+
+```{r}
+# Modelo GAM 2
+
+modelo_gam2 <- gam(FLO_Medio ~ s(Tmax_ACC_V) + Tmax_fld_m + Tmax_R + s(Tmax_ACC_R) + 
+    Tmin_R + Tmin_ACC_R + Rad_ACC_R + s(Graus_dia_FLO) + s(T_Media) + 
+    s(Rad_ACC), data=Todas)
+modelo_gam2
+```
+```{r}
+summary(modelo_gam2)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam2)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam2)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam2)
+GCV<-summary(modelo_gam2)$sp.criterion
+r.sq<-summary(modelo_gam2)$r.sq
+MAD <- mean(abs((predict(modelo_gam2, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam2, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam2$deviance - modelo_gam2$null.deviance))*-100)/modelo_gam2$null.deviance)
+tabela_2<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Forward")
+tabela_2
+
+```
+
+
+
+
+#### c) Aplicação GAM Backward 
+  
+
+```{r}
+# Modelo GAM 3
+
+modelo_gam3 <- gam(FLO_Medio ~ s(Tmin_V) + Tmin_ACC_V + UR_V + Tmax_R + 
+    s(Tmax_ACC_R) + Tmin_R + Tmin_ACC_R + UR_fld_m + s(Vento_fld_m) + 
+    s(Graus_dia_FLO) + T_Media + Tmax_Media + Tmin_Media + s(Rad_ACC), data=Todas)
+modelo_gam3
+```
+```{r}
+summary(modelo_gam3)
+```
+
+```{r}
+# Análise dos residos 
+par(mfrow = c(2,2))
+gam.check(modelo_gam3)
+```
+
+```{r}
+# plot do modelo
+
+plot(modelo_gam3)
+```
+```{r}
+# Métricas para análise do modelo
+  
+AIC<-AIC(modelo_gam3)
+GCV<-summary(modelo_gam3)$sp.criterion
+r.sq<-summary(modelo_gam3)$r.sq
+MAD <- mean(abs((predict(modelo_gam3, Temporario_TA))-Temporario_TA$FLO_Medio)) #  erro absoluto médio
+MSE<- mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2) # erro quadrático médio
+RMSE<-sqrt(mean((predict(modelo_gam3, Temporario_TA) - Temporario_TA$FLO_Medio)^2)) # raiz do erro quadrático médio
+Deviance<- ((((modelo_gam3$deviance - modelo_gam3$null.deviance))*-100)/modelo_gam3$null.deviance)
+tabela_3<- data.frame(AIC,GCV,r.sq,MAD, MSE,RMSE,Deviance, row.names = "Backward")
+tabela_3
+
+```
+
+
+###1.4.3) Comparação dos métodos
+
+```{r}
+tabela_Todas<- rbind(tabela_1,tabela_2,tabela_3,tabela_4,tabela_5)
+View(tabela_Todas)
+
+```
+
+
