@@ -1,0 +1,190 @@
+---
+title: "Analise das variaveis"
+author: "Gutemberg Resende Honorio Filho"
+date: "04/01/2021"
+output: html_document
+---
+
+
+
+```{r , include=F}
+knitr::opts_chunk$set(warning = F, message = F)
+```
+
+# Pacotes
+```{r}
+if(!require(tidyverse))
+  install.packages("tidyverse")
+if(!require(corrplot))
+  install.packages("corrplot")
+if(!require(Hmisc))
+  install.packages("Hmisc")
+if(!require(PerformanceAnalytics))
+  install.packages("PerformanceAnalytics")
+if(!require(mgcv)) 
+  install.packages("mgcv")
+
+```
+
+# Organização dos dados
+```{r Diretório} 
+# DIRETÓRIO DOS DADOS 
+
+Tabelabruta<- read.csv("d:/Users/Cristiane Resende/Desktop/Gutemberg Honorio/Mestrado/Dados_originais/Merge_1980_2018.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE) # tabela com os dados originais
+
+### Tabelas acessório
+
+
+TabelabrutaIRR = subset(Tabelabruta, SIST_CULT == "IRRIGATED") # Somente Irrigado
+TabelabrutaTA = subset(Tabelabruta, SIST_CULT == "UPLAND") # Somente Terras altas
+
+```
+
+```{r}
+# Preparando os dados
+
+#Dados do arroz terras altas
+
+mediasTA <- TabelabrutaTA  %>% group_by(GENOTIPO, latitude) %>% summarise(FLO_Medio = mean(FLO_E), Tmax_Maxima=	mean(Tmax_Maxima),Tmax_fld_m=	mean(Tmax_fld_m),	Tmax_R=	mean(Tmax_R),	Tmax_ACC_R=	mean(Tmax_ACC_R), Tmax_Minima=	mean(Tmax_Minima),	Tmax_Media=mean(Tmax_Media),Tmax_V=	mean(Tmax_V),Tmax_ACC_V=	mean(Tmax_ACC_V),	Tmin_Maxima=mean(Tmin_Maxima),Tmin_Minima=	mean(Tmin_Minima),	Tmin_Media=mean(Tmin_Media),	Tmin_V=	mean(Tmin_V),	Tmin_ACC_V=mean(Tmin_ACC_V), Tmin_fld_m=	mean(Tmin_fld_m),	Tmin_R=	mean(Tmin_R),	Tmin_ACC_R=	mean(Tmin_ACC_R), Chuva_ACC=	mean(Chuva_ACC),	Chuva_ACC_V=mean(Chuva_ACC_V), Chuva_ACC_R=	mean(Chuva_ACC_R),Rad_ACC_R=	mean(Rad_ACC_R),	Rad_ACC=	mean(Rad_ACC),	Rad_ACC_V=mean(Rad_ACC_V),	UR_Media=mean(umidade_Media),UR_V=	mean(umidade_V), UR_fld_m=	mean(umidade_fld_m),	UR_R=	mean(umidade_R),	Vento_fld_m=	mean(Vento_fld_m),	Vento_R=	mean(Vento_R), Vento_Media=	mean(Vento_Media),	Vento_V=mean(Vento_V),			Graus_dia_ciclo=mean(graus_dia_ciclo), graus_dia_FLO=mean(graus_dia_FLO+graus_dia_IP)) # médias das variaveis pelos genótipos considerando as latitudes em que foram plantados.
+
+# Separando outliers
+
+Q <- quantile(mediasTA$FLO_Medio, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(mediasTA$FLO_Medio)
+Temporario_TA<- subset(mediasTA, mediasTA$FLO_Medio > (Q[1] - 1.5*iqr) & mediasTA$FLO_Medio < (Q[2]+1.5*iqr))
+outliers_TA_Superiores<- subset(mediasTA, mediasTA$FLO_Medio >=  (Q[2] + 1.5*iqr))
+outliers_TA_Inferiores<- subset(mediasTA, mediasTA$FLO_Medio <=  (Q[1] - 1.5*iqr))
+```
+```{r}
+chart.Boxplot(outliers_TA_Superiores$FLO_Medio)
+boxplot(outliers_TA_Superiores$FLO_Medio, mediasTA$FLO_Medio, horizontal = T)
+```
+
+
+```{r}
+
+#Dados do arroz irrigado
+
+
+mediasIRR <- TabelabrutaIRR  %>% group_by(GENOTIPO, latitude) %>% summarise(FLO_Medio = mean(FLO_E), Tmax_Maxima=	mean(Tmax_Maxima),Tmax_fld_m=	mean(Tmax_fld_m),	Tmax_R=	mean(Tmax_R),	Tmax_ACC_R=	mean(Tmax_ACC_R), Tmax_Minima=	mean(Tmax_Minima),	Tmax_Media=mean(Tmax_Media),Tmax_V=	mean(Tmax_V),Tmax_ACC_V=	mean(Tmax_ACC_V),	Tmin_Maxima=mean(Tmin_Maxima),Tmin_Minima=	mean(Tmin_Minima),	Tmin_Media=mean(Tmin_Media),	Tmin_V=	mean(Tmin_V),	Tmin_ACC_V=mean(Tmin_ACC_V), Tmin_fld_m=	mean(Tmin_fld_m),	Tmin_R=	mean(Tmin_R),	Tmin_ACC_R=	mean(Tmin_ACC_R), Chuva_ACC=	mean(Chuva_ACC),	Chuva_ACC_V=mean(Chuva_ACC_V), Chuva_ACC_R=	mean(Chuva_ACC_R),Rad_ACC_R=	mean(Rad_ACC_R),	Rad_ACC=	mean(Rad_ACC),	Rad_ACC_V=mean(Rad_ACC_V),	UR_Media=mean(umidade_Media),UR_V=	mean(umidade_V), UR_fld_m=	mean(umidade_fld_m),	UR_R=	mean(umidade_R),	Vento_fld_m=	mean(Vento_fld_m),	Vento_R=	mean(Vento_R), Vento_Media=	mean(Vento_Media),	Vento_V=mean(Vento_V),			Graus_dia_ciclo=mean(graus_dia_ciclo), graus_dia_FLO=mean(graus_dia_FLO+graus_dia_IP)) # médias das variaveis pelos genótipos considerando as latitudes em que foram plantados.
+
+
+```
+# Analise descritiva 
+
+## Testando pressupostos (sem outliers)
+
+### Normalidade
+
+```{r}
+# qqplot
+for (i in 1:33) {
+chart.QQPlot(Temporario_TA[,i])
+}
+
+```
+
+
+
+```{r}
+#shapiro-test
+options(scipen = 999)
+loop_Shapiro <- list()
+
+for (name in names(Temporario_TA)){
+  My_sub <- Temporario_TA[[name]]
+  loop_Shapiro[[name]] <- shapiro.test(My_sub)
+}
+loop_Shapiro
+
+```
+
+
+## Boxplots
+
+```{r}
+# Florescimento
+chart.Boxplot(Temporario_TA[,1])
+```
+
+```{r}
+Temporario_TA1<- Temporario_TA[,c(-1,-5,	-9,	-14,	-17,	-18,	-19,	-20,	-21,	-22,	-23,	-32,	-33)
+]
+chart.Boxplot(Temporario_TA1)
+```
+```{r}
+Temporario_TA1<- Temporario_TA[,c(5,	9,	14,	17,	18,	19,	20,	21,	22,	23,	32,	33)
+]
+chart.Boxplot(Temporario_TA1)
+```
+ 
+# Matriz de correlação 
+
+Correlação entre o florecimento e as variaveis preditoras
+
+```{r}
+res <- cor(Temporario_TA) # Corr matrix
+Matriz_numerica<-round(res, 2)
+Matriz_numerica[1,]
+```
+```{r}
+
+Correlação<- rcorr(as.matrix(Temporario_TA),type=c("spearman"))
+Correlação$r # matriz de correlação
+Correlação$P # matriz de valor p
+
+
+  
+```
+  
+Matrix de correlação
+```{r}
+corrplot(Correlação$r,p.mat =Correlação$P, method = "number", type = "lower", tl.col = "black", tl.cex = 0.5, number.cex = 0.7, sig.level = 0.05)
+```
+
+
+## Modelo inicial para verificação de colinearilidade
+
+```{r}
+# modelo selecionado na seleção de preditores
+
+modelo_gam_teste <-  gam(FLO_Medio ~s(Tmax_V) + s(Tmax_ACC_V) + 
+    s(Tmax_R) + s(Tmax_ACC_R) + 
+    s(Tmin_ACC_R) + s(Graus_dia_FLO), data=Temporario_TA) # NSP para TODAS
+```
+
+
+## VIF (Fator de Inflação de Variância)
+```{r}
+samvif <- function(mod){
+  # mod é um objeto mgcv
+  # esta função calcula os fatores de inflação de variância para GAM
+  mod.sum <- summary(mod)
+  s2 <- mod$sig2 # estimativa do desvio padrão dos resíduos
+  X <- mod$model # dados usados para ajustar o modelo
+  n <- nrow(X) # quantas observações foram usadas no ajuste?
+  v <- -1 # omite o termo de interceptação, não pode aumentar a variância
+  varbeta <- mod.sum$p.table[v,2]^2 # variance in estimates
+  varXj <- apply(X=X[,row.names(mod.sum$p.table)[v]],MARGIN=2, var) # variância de todas as variáveis explicativas
+  VIF <- varbeta/(s2/(n-1)*1/varXj) # o fator de inflação da variância, obtido por rearranjo
+  # var (beta_j) = s ^ 2 / (n-1) * 1 / var (X_j) * VIF_j
+  
+  VIF.df <- data.frame(variable=names(VIF),
+                       vif=VIF, 
+                       row.names=NULL)
+                       
+  return(VIF.df)
+}
+VIF<-samvif(modelo_gam_teste)
+VIF
+
+```
+
+## Concurvidade (simultaniedade)
+```{r}
+simult<-concurvity(modelo_gam_teste, full = F)
+corrplot(simult$estimate, method = "number", type = "lower", tl.col = "black", tl.cex = 1, number.cex = 0.7, cl.pos = "n") # Quanto mais proximo de 1 maior é a probabilidade de simultaniedade que é uma generalização da colinearilidade em modelos GAM
+```
+
+
+

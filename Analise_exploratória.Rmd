@@ -1,0 +1,193 @@
+---
+title: "Analise exploratória"
+author: "Gutemberg Resende Honorio Filho"
+date: "27/01/2021"
+output: html_document
+---
+# Pacotes
+
+```{r}
+
+if(!require(tidyverse))
+  install.packages("tidyverse")
+if(!require(geobr)) 
+  install.packages("geobr")
+if(!require(ggspatial)) 
+  install.packages("ggspatial")
+if(!require(spatstat)) 
+  install.packages("spatstat")
+library(rmarkdown)
+
+# !!!! é necessário para instalar o pacote XDA
+if ( ! require ( devtools ))
+  install.packages ( " devtools " )
+devtools::install_git("git://github.com/ujjwalkarn/xda.git")
+library(xda)# pacote fora do Cran.
+
+
+```
+
+# DADOS
+```{r Diretório} 
+
+# DIRETÓRIO DOS DADOS 
+
+Tabelabruta<- read.csv("d:/Users/Cristiane Resende/Desktop/Gutemberg Honorio/Mestrado/Dados_originais/Merge_1980_2018.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE) # tabela com os dados originais
+
+Tabelabruta<- mutate(Tabelabruta,REGIAO = case_when(UF == 'GO'| UF == 'DF' |UF == 'MS' | UF == 'MT' ~ 'Centro_Oeste',
+                              UF == 'AL'| UF == 'BA' |UF == 'CE' | UF == 'MA' | UF == 'PB' | UF == 'PE' | UF == 'PI' | UF == 'RN' | UF == 'SE' ~ 'Nordeste',
+                              UF == 'AC' | UF == 'AM' | UF == 'AP' | UF == 'PA' | UF == 'RO' | UF == 'RR' | UF == 'TO' ~ 'Norte',
+                              UF == 'ES' | UF == 'MG' | UF == 'SP' | UF == 'RJ' ~ 'Sudoeste',
+                              UF == 'RS' | UF == 'SC' | UF == 'PR' ~ 'Sul'))
+
+## Tabelas acessório
+
+TabelabrutaIRR = subset(Tabelabruta, SIST_CULT == "IRRIGATED") # Somente Irrigado
+TabelabrutaTA = subset(Tabelabruta, SIST_CULT == "UPLAND") # Somente Terras altas
+
+### Filtrando os dados
+
+
+
+#Dados do arroz terras altas
+
+mediasTA <- TabelabrutaTA  %>% group_by(GENOTIPO, ID_ENSAIO, REGIAO) %>% summarise(FLO_Medio = mean(FLO_E), Tmax_Maxima=	mean(Tmax_Maxima),Tmax_fld_m=	mean(Tmax_fld_m),	Tmax_R=	mean(Tmax_R),	Tmax_ACC_R=	mean(Tmax_ACC_R), Tmax_Minima=	mean(Tmax_Minima),	Tmax_Media=mean(Tmax_Media),Tmax_V=	mean(Tmax_V),Tmax_ACC_V=	mean(Tmax_ACC_V),	Tmin_Maxima=mean(Tmin_Maxima),Tmin_Minima=	mean(Tmin_Minima),	Tmin_Media=mean(Tmin_Media),	Tmin_V=	mean(Tmin_V),	Tmin_ACC_V=mean(Tmin_ACC_V), Tmin_fld_m=	mean(Tmin_fld_m),	Tmin_R=	mean(Tmin_R),	Tmin_ACC_R=	mean(Tmin_ACC_R), Chuva_ACC=	mean(Chuva_ACC),	Chuva_ACC_V=mean(Chuva_ACC_V), Chuva_ACC_R=	mean(Chuva_ACC_R),Rad_ACC_R=	mean(Rad_ACC_R),	Rad_ACC=	mean(Rad_ACC),	Rad_ACC_V=mean(Rad_ACC_V),	UR_Media=mean(umidade_Media),UR_V=	mean(umidade_V), UR_fld_m=	mean(umidade_fld_m),	UR_R=	mean(umidade_R),	Vento_fld_m=	mean(Vento_fld_m),	Vento_R=	mean(Vento_R), Vento_Media=	mean(Vento_Media),	Vento_V=mean(Vento_V),			Graus_dia_ciclo=mean(graus_dia_ciclo), graus_dia_FLO=mean(graus_dia_FLO+graus_dia_IP)) # médias das variaveis pelos genótipos considerando as latitudes em que foram plantados.
+
+#Dados do arroz terras altas
+
+mediasIRR <- TabelabrutaIRR  %>% group_by(GENOTIPO, ID_ENSAIO, REGIAO) %>% summarise(FLO_Medio = mean(FLO_E), Tmax_Maxima=	mean(Tmax_Maxima),Tmax_fld_m=	mean(Tmax_fld_m),	Tmax_R=	mean(Tmax_R),	Tmax_ACC_R=	mean(Tmax_ACC_R), Tmax_Minima=	mean(Tmax_Minima),	Tmax_Media=mean(Tmax_Media),Tmax_V=	mean(Tmax_V),Tmax_ACC_V=	mean(Tmax_ACC_V),	Tmin_Maxima=mean(Tmin_Maxima),Tmin_Minima=	mean(Tmin_Minima),	Tmin_Media=mean(Tmin_Media),	Tmin_V=	mean(Tmin_V),	Tmin_ACC_V=mean(Tmin_ACC_V), Tmin_fld_m=	mean(Tmin_fld_m),	Tmin_R=	mean(Tmin_R),	Tmin_ACC_R=	mean(Tmin_ACC_R), Chuva_ACC=	mean(Chuva_ACC),	Chuva_ACC_V=mean(Chuva_ACC_V), Chuva_ACC_R=	mean(Chuva_ACC_R),Rad_ACC_R=	mean(Rad_ACC_R),	Rad_ACC=	mean(Rad_ACC),	Rad_ACC_V=mean(Rad_ACC_V),	UR_Media=mean(umidade_Media),UR_V=	mean(umidade_V), UR_fld_m=	mean(umidade_fld_m),	UR_R=	mean(umidade_R),	Vento_fld_m=	mean(Vento_fld_m),	Vento_R=	mean(Vento_R), Vento_Media=	mean(Vento_Media),	Vento_V=mean(Vento_V),			Graus_dia_ciclo=mean(graus_dia_ciclo), graus_dia_FLO=mean(graus_dia_FLO+graus_dia_IP)) # médias das variaveis pelos genótipos considerando as latitudes em que foram plantados.
+
+```
+# VISÃO GERAL
+
+## Mapa do Brasil com as distribuições geográficas dos ensáios
+
+```{r , include=F}
+Brasil<- read_state(code_state="all",year=2010)
+  
+Mapa<-ggplot(Brasil) +
+  geom_sf(aes(group = code_state), data = Brasil, size = 0.1 , fill = "#FFF7C2") +
+  geom_point(aes(x = longitude, y = latitude, colour = "Irrigado"), data = TabelabrutaIRR, size = 1L)+
+  geom_point(aes(x = longitude, y = latitude, colour = "Terras altas"), data = TabelabrutaTA, size = 1L)+
+  scale_colour_manual(values = c("blue","#EA6E16"))+
+  labs(x = "Longitude", y = "Latitude", title = "   Distribuição geográfica dos ensaios", color = "Legenda") +
+  annotation_north_arrow(style=north_arrow_fancy_orienteering)+
+  annotation_scale(location="br", height = unit(0.15,"cm"))+
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+rm(Brasil)
+```
+```{r , echo=FALSE, fig.align='center', out.width='100%', fig.asp=0.6, fig.width=9}
+Mapa
+```
+### Número de ensáios realizados por macroorregião.
+```{r}
+
+macrorregiao_Ensaios<-apply(with(Tabelabruta,table(REGIAO,SIST_CULT,ID_ENSAIO))>0,1:2,sum)
+macrorregiao_Ensaios
+```
+
+### Número de genótipos utilizados por macrorregião
+
+```{r}
+macrorregiao_Genotipos<-apply(with(Tabelabruta,table(REGIAO,SIST_CULT,GENOTIPO))>0,1:2,sum) 
+macrorregiao_Genotipos
+```
+
+## Genótipos
+
+Em geral foram avaliados 
+    530 genótipos em sistema IRRIGADO
+    500 genótipos em sistema TERRAS ALTAS
+
+
+```{r}
+### Terras altas _número de repetição por genótipo
+GENOTIPOS_TA<-TabelabrutaTA %>% 
+  group_by(GENOTIPO) %>% 
+  summarise(Contagem = length(unique(ID_ENSAIO)), FLO_medio = mean(FLO_E))
+GENOTIPOS_TA
+```
+
+```{r}
+### Irrigado_número de repetição por genótipo
+GENOTIPOS_IRR<-TabelabrutaIRR %>% 
+  group_by(GENOTIPO) %>% 
+  summarise(Contagem = length(unique(ID_ENSAIO)), FLO_medio = mean(FLO_E))
+GENOTIPOS_IRR
+```
+
+```{r}
+boxplot(GENOTIPOS_TA$Contagem, GENOTIPOS_IRR$Contagem, horizontal = T,  main = "Repetição por genótipo", names = c("Terras altas","Irrigado"))
+boxplot(GENOTIPOS_TA$FLO_medio, GENOTIPOS_IRR$FLO_medio, horizontal = T, main = "Média da data de florescimento (DAE) por genótipo", names = c("Terras altas","Irrigado"), xlab = "Dias após a emergência (DAE)")
+```
+## BOXPLOTs
+
+### Florescimento
+```{r}
+boxplot(mediasTA$FLO_Medio, mediasIRR$FLO_Medio, horizontal = T, main = "Média da data de florescimento (DAE) por genótipo", names = c("Terras altas", "Irrigado"), xlab = "Dias após a emergência (DAE)")
+```
+
+### Terras altas
+### Irrigado
+
+
+## METRICAS
+
+### Terras altas
+
+```{r}
+# Nessa parte é utilizada no pacote XDA
+Descritivo_TA <- numSummary ( mediasTA )
+paged_table(Descritivo_TA)
+```
+### Irrigado
+
+```{r}
+# Nessa parte é utilizada no pacote XDA
+Descritivo_IRR <- numSummary ( mediasIRR )
+paged_table(Descritivo_IRR)
+```
+# REGIONALIZANDO OS DADOS
+
+## Centro-oeste 
+```{r}
+Temporario_TA <- subset(mediasTA, (REGIAO == "Centro_Oeste")) # filtrando por região
+Temporario_TA<- Temporario_TA[,c(-1,-2,-3)] # retirando variáveis que não serão plotadas
+Temporario_IRR <- subset(mediasIRR, (REGIAO == "Centro_Oeste")) # filtrando por região
+Temporario_IRR<- Temporario_IRR[,c(-1,-2,-3)] # retirando variáveis que não serão plotadas
+```
+
+# Florescimento
+```{r}
+boxplot(Temporario_TA$FLO_Medio, Temporario_IRR$FLO_Medio, horizontal = T, main = "Média da data de florescimento (DAE) por genótipo", names = c("Terras altas", "Irrigado"), xlab = "Dias após a emergência (DAE)")
+```
+
+
+### Preditoras Terras Altas
+```{r}
+# Variáveis com escala menor
+Temporario<- Temporario_TA[,c(-1,-5,	-9,	-14,	-17,	-18,	-19,	-20,	-21,	-22,	-23,	-32,	-33)] # retirando as variáveis com escala maior
+
+boxplot(Temporario, horizontal = T, las = 1, cex.axis=0.55)
+```
+```{r}
+# variáveis com escala maior
+Temporario<- Temporario_TA[,c(5,	9,	14,	17,	18,	19,	20,	21,	22,	23,	32,	33)] # separando as variáveis com escala maior
+boxplot(Temporario, horizontal = T, las = 1, cex.axis=0.55)
+```
+
+### Preditoras Irrigado
+
+```{r}
+# Variáveis com escala menor
+Temporario <- Temporario_IRR[,c(-1,-5,	-9,	-14,	-17,	-18,	-19,	-20,	-21,	-22,	-23,	-32,	-33)] # retirando as variáveis com escala maior
+boxplot(Temporario, horizontal = T, las = 1, cex.axis=0.55)
+```
+```{r}
+# variáveis com escala maior
+Temporario<- Temporario_IRR[,c(5,	9,	14,	17,	18,	19,	20,	21,	22,	23,	32,	33)] # separando as variáveis com escala maior
+boxplot(Temporario, horizontal = T, las = 1, cex.axis=0.55)
+```
+
+### Matrix de correlação
